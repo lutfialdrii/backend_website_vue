@@ -1,66 +1,41 @@
 <?php
-header('Access-Control-Allow-Origin: *');
-header('Access-Control-Allow-Methods: GET, POST');
-header("Access-Control-Allow-Headers: *");
-header ('Content-Length:'. Filesize($cache_file));
+include 'connection.php';
 
-$dbserver = "localhost";
-$dbname = "id19171712_web_sepatu";
-$dbuser = "id19171712_root";
-$dbpassword = "cobaDatabase1;";
-$dsn = "mysql:host={$dbserver};dbname={$dbname}";
+$username = $_POST[ 'username'];
+$password = $_POST['password'];
 
-$connection = null;
 try {
-    $connection = new PDO($dsn, $dbuser, $dbpassword);
-    $connection->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
 
-} catch (PDOException $e) {
-    die("Koneksi Gagal: " . $e->getMessage());
-}
+    if($username != '' && $password != '') {
 
-if($_POST){
-    //data
-    $username = $_POST['username'] ?? '';
-    $password = $_POST['password'] ?? '';
+        $query = "SELECT * FROM user WHERE username = '$username' AND password = '$password'";
 
-    $response = []; //Data Response
-
-    //Cek Username dalam database
-    $userQuery = $connection->prepare("SELECT * FROM user where username = ?");
-    $userQuery->execute(array($username));
-    $query = $userQuery->fetch();
-
-    if($userQuery->rowCount() == 0){
-        $response['status'] = false;
-        $response['message'] = "Username tidak ditemukan";
-    } else {
-        // Ambil password di database
-
-        $passwordDB = $query['password'];
-
-        if(strcmp(md5($password), $passwordDB) === 0){
-            $response['status'] = true;
-            $response['message'] = "Login Berhasil";
-            $response['data'] = [
-                'id_user' => $query['id_user'],
-                'username' => $query['username'],
-                'nama_lengkap' => $query['nama_lengkap'],
-                'nomor_hp' => $query['nomor_hp'],
-                'alamat' => $query['alamat'],
-                'email' => $query['email'],
-                'jenis_kelamin' => $query['jenis_kelamin']
-            ];
+        $execute = $connection->query($query);
+        $response = [];
+        $execute->setFetchMode(PDO::FETCH_ASSOC);
+        $row = $execute->fetchAll();
+        if ($row){
+            if (count($row) > 0 ) {
+                $response['status'] = 'success';
+                $response['message'] = 'Berhasil Login';
+                $response['data'] = $row;
+            }
         } else {
-            $response['status'] = false;
-            $response['message'] = "Password salah";
+            $response['status'] = 'failed';
+            $response['message'] = 'Email atau Password salah';
+            $response['user'] = $row;
         }
+
+    } else {
+        $response['status'] = 'failed';
+        $response['message'] = 'Input tidak boleh kosong';
     }
 
+}catch(Exception $exception){
+    $response['status'] = 'failed';
+    $response['message'] = 'Gagal Login :' . $exception->getMessage();
 
-    //jadikan data JSON
-    $json = json_encode($response, JSON_PRETTY_PRINT);
-
-    //Print JSON
-    echo $json;
 }
+header("Content-Type: application/json; charset=UTF-8");
+$json = json_encode($response, JSON_PRETTY_PRINT);
+echo $json;
